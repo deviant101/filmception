@@ -8,3 +8,4 @@ streamlit>=1.10.0
 gtts>=2.2.4
 googletrans==4.0.0-rc1
 Pillow>=9.0.0
+tqdm>=4.62.0
