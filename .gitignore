@@ -176,3 +176,4 @@ cython_debug/
 # Custom
 models/
 audio_files/
+MovieSummaries/
