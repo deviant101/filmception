@@ -332,6 +332,71 @@ class GenrePredictor:
             return ["Drama", "Thriller"]
 
 
+class AudioLibrary:
+    def __init__(self, audio_dir=AUDIO_DIR):
+        """Initialize the audio library"""
+        self.audio_dir = audio_dir
+        os.makedirs(audio_dir, exist_ok=True)
+    
+    def get_audio_directory(self):
+        """Get the path to the audio directory"""
+        return self.audio_dir
+    
+    def get_summary_ids(self):
+        """Get unique summary IDs from the audio files"""
+        try:
+            files = [f for f in os.listdir(self.audio_dir) if f.endswith('.mp3')]
+            # Extract the summary IDs (hash part before the underscore)
+            summary_ids = set()
+            for file in files:
+                parts = file.split('_')
+                if len(parts) > 1:
+                    summary_ids.add(parts[0])
+            return sorted(list(summary_ids))
+        except Exception as e:
+            print(f"Error getting summary IDs: {e}")
+            return []
+    
+    def get_audio_files_for_summary(self, summary_id):
+        """Get all audio files for a specific summary ID"""
+        try:
+            files = [f for f in os.listdir(self.audio_dir) if f.startswith(f"{summary_id}_") and f.endswith('.mp3')]
+            return sorted(files)
+        except Exception as e:
+            print(f"Error getting audio files for summary {summary_id}: {e}")
+            return []
+    
+    def get_language_for_file(self, filename):
+        """Extract language code from filename"""
+        try:
+            parts = filename.split('_')
+            if len(parts) > 1:
+                # Get the language code before .mp3
+                lang_code = parts[-1].split('.')[0]
+                
+                # Convert language code to full name
+                for lang_name, code in LANGUAGES.items():
+                    if code == lang_code:
+                        return lang_name
+                return lang_code.upper()
+            return "Unknown"
+        except Exception as e:
+            print(f"Error getting language for file {filename}: {e}")
+            return "Unknown"
+    
+    def get_audio_bytes(self, filename):
+        """Get audio file bytes for streaming"""
+        try:
+            file_path = os.path.join(self.audio_dir, filename)
+            if os.path.exists(file_path):
+                with open(file_path, 'rb') as f:
+                    return f.read()
+            return None
+        except Exception as e:
+            print(f"Error reading audio file {filename}: {e}")
+            return None
+
+
 class MultilingualTranslator:
     def __init__(self, audio_dir=AUDIO_DIR):
         self.translator = Translator()
@@ -396,6 +461,7 @@ class FilmceptionApp:
         self.preprocessor = DataPreprocessor()
         self.genre_predictor = GenrePredictor()
         self.translator = MultilingualTranslator()
+        self.audio_library = AudioLibrary()
         
     def train_and_evaluate(self, sample_size=None, test_size=0.2):
         """Train and evaluate the genre prediction model"""

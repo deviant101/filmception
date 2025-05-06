@@ -12,6 +12,7 @@ from PIL import Image
 import base64
 from io import BytesIO
 import re
+import pandas as pd
 
 # Constants
 LANGUAGES = {
@@ -72,6 +73,18 @@ def run_app(app):
                 font-size: 16px;
                 cursor: pointer;
             }
+            .audio-card {
+                background-color: #f8f9fa;
+                border-radius: 10px;
+                padding: 15px;
+                margin-bottom: 15px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .audio-card:hover {
+                box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+                transform: translateY(-2px);
+                transition: all 0.3s ease;
+            }
         </style>
     """, unsafe_allow_html=True)
 
@@ -84,7 +97,7 @@ def run_app(app):
     st.sidebar.title("Options")
     app_mode = st.sidebar.radio(
         "Choose the functionality",
-        ["Movie Summary Audio Conversion", "Genre Prediction", "About Project"]
+        ["Movie Summary Audio Conversion", "Genre Prediction", "Audio Library", "About Project"]
     )
 
     # Main content based on selected mode
@@ -92,6 +105,8 @@ def run_app(app):
         show_summary_translation(app)
     elif app_mode == "Genre Prediction":
         show_genre_prediction(app)
+    elif app_mode == "Audio Library":
+        show_audio_library(app)
     else:
         show_about_project()
 
@@ -238,6 +253,109 @@ def show_genre_prediction(app):
         st.error(f"Error loading the genre prediction model: {str(e)}")
         st.info("You may need to train the model first by running the main.py script.")
 
+def show_audio_library(app):
+    """Display the audio library interface"""
+    
+    st.markdown('<h2 class="sub-header">Audio Library</h2>', 
+                unsafe_allow_html=True)
+    
+    st.write("Browse and listen to movie summaries in multiple languages.")
+    
+    # Check if the audio library exists
+    audio_dir = app.audio_library.get_audio_directory()
+    if os.path.exists(audio_dir):
+        # Get all unique summary IDs
+        summary_ids = app.audio_library.get_summary_ids()
+        
+        if summary_ids:
+            # Display summary count
+            st.info(f"Library contains {len(summary_ids)} movie summaries in multiple languages.")
+            
+            # Add search functionality
+            search_text = st.text_input("🔍 Search for specific summary IDs:", "")
+            
+            # Filter summary IDs based on search
+            if search_text:
+                filtered_ids = [sid for sid in summary_ids if search_text.lower() in sid.lower()]
+                if not filtered_ids:
+                    st.warning("No matches found. Showing all summaries.")
+                    filtered_ids = summary_ids
+            else:
+                filtered_ids = summary_ids
+            
+            # Create pagination
+            items_per_page = 5
+            total_pages = (len(filtered_ids) + items_per_page - 1) // items_per_page
+            
+            col1, col2, col3 = st.columns([1, 3, 1])
+            with col2:
+                page = st.number_input("Page", min_value=1, max_value=max(1, total_pages), value=1, step=1)
+            
+            # Get current page items
+            start_idx = (page - 1) * items_per_page
+            end_idx = min(start_idx + items_per_page, len(filtered_ids))
+            current_page_ids = filtered_ids[start_idx:end_idx]
+            
+            # Display page information
+            st.write(f"Showing summaries {start_idx + 1}-{end_idx} of {len(filtered_ids)}")
+            
+            # Display each summary with its audio files
+            for summary_id in current_page_ids:
+                with st.expander(f"Summary ID: {summary_id}", expanded=False):
+                    audio_files = app.audio_library.get_audio_files_for_summary(summary_id)
+                    
+                    if audio_files:
+                        # Group by language
+                        for audio_file in audio_files:
+                            language = app.audio_library.get_language_for_file(audio_file)
+                            
+                            # Display language and audio player
+                            st.subheader(f"{language}")
+                            
+                            # Get audio bytes
+                            audio_bytes = app.audio_library.get_audio_bytes(audio_file)
+                            
+                            if audio_bytes:
+                                # Create columns for audio player and download button
+                                col1, col2 = st.columns([3, 1])
+                                
+                                with col1:
+                                    st.audio(audio_bytes, format='audio/mp3')
+                                
+                                with col2:
+                                    st.download_button(
+                                        label="Download",
+                                        data=audio_bytes,
+                                        file_name=audio_file,
+                                        mime="audio/mp3"
+                                    )
+                            else:
+                                st.error(f"Could not load audio file: {audio_file}")
+                    else:
+                        st.warning("No audio files found for this summary.")
+                
+                st.markdown("---")  # Add separator between summaries
+            
+            # Add pagination navigation
+            col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
+            with col1:
+                if page > 1:
+                    if st.button("◀️ Previous"):
+                        st.session_state.page = page - 1
+                        st.experimental_rerun()
+            with col4:
+                if page < total_pages:
+                    if st.button("Next ▶️"):
+                        st.session_state.page = page + 1
+                        st.experimental_rerun()
+        else:
+            st.warning("No audio files found in the library.")
+    else:
+        st.error("Audio library directory does not exist.")
+        
+        # Suggest generating audio files
+        st.info("You can generate audio files in the 'Movie Summary Audio Conversion' section or run the generate_sample_audios.py script to create sample audio files.")
+
 def show_about_project():
     """Display information about the project"""
     
@@ -277,6 +395,7 @@ def show_about_project():
     
     1. Navigate to the "Movie Summary Audio Conversion" tab to translate and convert summaries to audio.
     2. Navigate to the "Genre Prediction" tab to predict the genre of a movie based on its summary.
+    3. Navigate to the "Audio Library" tab to browse and manage generated audio files.
     
     """)
 
