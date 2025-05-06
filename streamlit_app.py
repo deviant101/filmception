@@ -11,6 +11,7 @@ import time
 from PIL import Image
 import base64
 from io import BytesIO
+import re
 
 # Constants
 LANGUAGES = {
@@ -196,23 +197,40 @@ def show_genre_prediction(app):
                 # Predict genres
                 predicted_genres = app.genre_predictor.predict_genres(summary)
                 
+                # Clean up any remaining metadata from genre names
+                clean_genres = []
+                for genre in predicted_genres:
+                    # Remove any Freebase IDs like "/m/12345"
+                    clean_genre = re.sub(r'\s*/m/[\w\d]+', '', genre)
+                    
+                    # Remove any special characters and extra metadata
+                    clean_genre = re.sub(r'[{}\"\'\[\]]', '', clean_genre)
+                    
+                    # Split on comma and take first part (main genre name)
+                    if ',' in clean_genre:
+                        clean_genre = clean_genre.split(',')[0].strip()
+                    
+                    clean_genres.append(clean_genre.strip())
+                
                 # Display results
                 st.subheader("Predicted Genres:")
                 
-                if predicted_genres:
+                if clean_genres:
                     # Create a horizontal list of genres with styling
                     genre_html = '<div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;">'
-                    for genre in predicted_genres:
+                    for genre in clean_genres:
                         genre_html += f'<span style="background-color: #4B8BFF; color: white; padding: 5px 10px; border-radius: 15px;">{genre}</span>'
                     genre_html += '</div>'
                     
                     st.markdown(genre_html, unsafe_allow_html=True)
                     
-                    # Display confidence levels (mock data as we don't have actual confidence scores)
+                    # Display a brief analysis
                     st.subheader("Genre Analysis:")
                     
-                    # Display a brief analysis
-                    st.write(f"This movie summary suggests elements of {', '.join(predicted_genres[:-1])} and {predicted_genres[-1]}.") 
+                    if len(clean_genres) > 1:
+                        st.write(f"This movie summary suggests elements of {', '.join(clean_genres[:-1])} and {clean_genres[-1]}.") 
+                    else:
+                        st.write(f"This movie summary suggests elements of {clean_genres[0]}.") 
                 else:
                     st.info("Could not determine genres from this summary. Try adding more details.")
         

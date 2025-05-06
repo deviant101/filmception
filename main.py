@@ -101,8 +101,26 @@ class DataPreprocessor:
         genre_names = []
         for genre in genres_str.split('|'):
             if ':' in genre:
-                genre_name = genre.split(':')[1]
-                genre_names.append(genre_name)
+                # Extract only the genre name, removing any extra metadata
+                genre_name = genre.split(':')[1].strip()
+                
+                # Further clean the genre names by removing any additional text after commas, quotes, 
+                # or special characters that might be part of the structured data
+                if ',' in genre_name:
+                    genre_name = genre_name.split(',')[0].strip()
+                if '"' in genre_name:
+                    genre_name = genre_name.split('"')[0].strip()
+                if '"' in genre_name:
+                    genre_name = genre_name.replace('"', '').strip()
+                if '}' in genre_name:
+                    genre_name = genre_name.split('}')[0].strip()
+                
+                # Remove any identifiers or references like "/m/12345"
+                genre_name = re.sub(r'\s*/m/[\w\d]+', '', genre_name).strip()
+                
+                # Only add non-empty genre names
+                if genre_name:
+                    genre_names.append(genre_name)
         
         return genre_names
     
